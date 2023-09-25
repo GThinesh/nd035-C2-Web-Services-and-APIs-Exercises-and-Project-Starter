@@ -8,6 +8,7 @@ import com.udacity.vehicles.domain.car.CarRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Implements the car service create, read, update or delete
@@ -33,7 +34,10 @@ public class CarService {
      * @return a list of all vehicles in the CarRepository
      */
     public List<Car> list() {
-        return repository.findAll();
+        return repository.findAll()
+                .stream()
+                .map(this::applyPriceAndAddress)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -44,12 +48,17 @@ public class CarService {
      */
     public Car findById(Long id) {
         Car car = getPresentCar(id);
+        applyPriceAndAddress(car);
 
+        return car;
+    }
+
+    private Car applyPriceAndAddress(Car car) {
+        Long id = car.getId();
         String price = pricingClient.getPrice(id);
         car.setPrice(price);
         Location address = mapsClient.getAddress(car.getLocation());
         car.getLocation().setAddress(address.getAddress());
-
         return car;
     }
 
@@ -68,6 +77,7 @@ public class CarService {
             return repository.findById(car.getId()).map(carToBeUpdated -> {
                 carToBeUpdated.setDetails(car.getDetails());
                 carToBeUpdated.setLocation(car.getLocation());
+                carToBeUpdated.setCondition(car.getCondition());
                 return repository.save(carToBeUpdated);
             }).orElseThrow(CarNotFoundException::new);
         }

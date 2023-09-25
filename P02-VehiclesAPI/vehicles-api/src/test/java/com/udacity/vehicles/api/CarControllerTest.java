@@ -1,6 +1,5 @@
 package com.udacity.vehicles.api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.udacity.vehicles.client.maps.MapsClient;
 import com.udacity.vehicles.client.prices.PriceClient;
 import com.udacity.vehicles.domain.Condition;
@@ -9,9 +8,12 @@ import com.udacity.vehicles.domain.car.Car;
 import com.udacity.vehicles.domain.car.Details;
 import com.udacity.vehicles.domain.manufacturer.Manufacturer;
 import com.udacity.vehicles.service.CarService;
+import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJsonTesters;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -59,6 +61,8 @@ public class CarControllerTest {
 
     @MockBean
     private MapsClient mapsClient;
+    @Captor
+    private ArgumentCaptor<Car> carCaptor;
 
     /**
      * Creates pre-requisites for testing, such as an example car.
@@ -144,6 +148,31 @@ public class CarControllerTest {
         mvc.perform(delete(new URI("/cars/1"))).andDo(print());
         verify(carService, times(1)).delete(1L);
 
+    }
+
+    @Test
+    public void updateCar() throws Exception {
+        Car car = getCar();
+        mvc.perform(post(new URI("/cars"))
+                                .content(json.write(car).getJson())
+                                .contentType(MediaType.APPLICATION_JSON_UTF8)
+                                .accept(MediaType.APPLICATION_JSON_UTF8))
+                .andExpect(status().isCreated());
+
+        int newMileage = car.getDetails().getMileage() + 1000;
+        car.getDetails().setMileage(newMileage);
+        car.setLocation(new Location(40.730615, -73.935242));
+
+        mvc.perform(put(new URI("/cars/1"))
+                .content(json.write(car).getJson())
+                .contentType(MediaType.APPLICATION_JSON_UTF8)
+                .accept(MediaType.APPLICATION_JSON_UTF8)).andExpect(status().isOk());
+
+        verify(carService,times(2)).save(carCaptor.capture());
+
+        Car putCar = carCaptor.getValue();
+        Assertions.assertThat(putCar.getDetails().getMileage()).isEqualTo(newMileage);
+        Assertions.assertThat(putCar.getLocation().getLat()).isEqualTo(40.730615);
     }
 
     /**
